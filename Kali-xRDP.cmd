@@ -118,15 +118,21 @@ NETSH AdvFirewall Firewall add rule name="%DISTRO% Secure Shell" dir=in action=a
 NETSH AdvFirewall Firewall add rule name="%DISTRO% Avahi Daemon" dir=in action=allow protocol=UDP localport=5353,53791 > NUL
 START /MIN "%DISTRO% Init" WSL ~ -u root -d %DISTRO% -e initwsl 2
 ECHO Building RDP Connection file, Init system...
-ECHO @START /MIN "%DISTRO%" WSLCONFIG.EXE /t %DISTRO%                  >  "%LOCALAPPDATA%\Kali-xRDP.cmd"
-ECHO @Powershell.exe -Command "Start-Sleep 3"                          >> "%LOCALAPPDATA%\Kali-xRDP.cmd"
-ECHO @START /MIN "%DISTRO%" WSL.EXE ~ -u root -d %DISTRO% -e initwsl 2 >> "%LOCALAPPDATA%\Kali-xRDP.cmd"
+ECHO Set OW = GetObject(^"winmgmts:^" ^& ^"^{impersonationLevel^=impersonate^}!\\.\root\cimv2^") > "%LOCALAPPDATA%\Kali-xRDP.vbs"
+ECHO Set ST = OW.Get(^"Win32_ProcessStartup^") >> "%LOCALAPPDATA%\Kali-xRDP.vbs"
+ECHO Set OC = ST.SpawnInstance_ >> "%LOCALAPPDATA%\Kali-xRDP.vbs"		
+ECHO OC.ShowWindow ^= 0 >> "%LOCALAPPDATA%\Kali-xRDP.vbs"
+ECHO Set OP = GetObject(^"winmgmts:root\cimv2:Win32_Process^") >> "%LOCALAPPDATA%\Kali-xRDP.vbs"
+ECHO WScript.Sleep 2000 >> "%LOCALAPPDATA%\Kali-xRDP.vbs"
+ECHO RT = OP.Create( ^"WSLCONFIG.EXE /t kali-linux^", null, OC, intProcessID) >> "%LOCALAPPDATA%\Kali-xRDP.vbs"
+ECHO WScript.Sleep 5000 >> "%LOCALAPPDATA%\Kali-xRDP.vbs"
+ECHO RT = OP.Create( ^"WSL.EXE ~ -u root -d kali-linux -e initwsl 2^", null, OC, intProcessID) >> "%LOCALAPPDATA%\Kali-xRDP.vbs"	
 POWERSHELL -Command "Copy-Item '%DISTROFULL%\Kali-xRDP (%XU%).rdp' ([Environment]::GetFolderPath('Desktop'))"
 ECHO Building Scheduled Task...
 %GO% "cp /tmp/Kali-xRDP/xWSL.xml ."
 %TEMP%\LxRunOffline.exe su -n %DISTRO% -v 1000
 POWERSHELL -C "$WAI = (whoami)                       ; (Get-Content .\xWSL.xml).replace('AAAA', $WAI) | Set-Content .\xWSL.xml"
-POWERSHELL -C "$WAC = '%LOCALAPPDATA%\Kali-xRDP.cmd' ; (Get-Content .\xWSL.xml).replace('QQQQ', $WAC) | Set-Content .\xWSL.xml"
+POWERSHELL -C "$WAC = '%LOCALAPPDATA%\Kali-xRDP.vbs' ; (Get-Content .\xWSL.xml).replace('QQQQ', $WAC) | Set-Content .\xWSL.xml"
 SCHTASKS /Create /TN:%DISTRO% /XML ./xWSL.xml /F
 PING -n 6 LOCALHOST > NUL 
 ECHO:
